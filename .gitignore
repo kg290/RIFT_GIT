@@ -1,0 +1,34 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+ENV/
+
+# Environment variables (NEVER commit)
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Contract build artifacts
+*.teal.tok
+contract_ids.json
+
+# Node modules (frontend)
+node_modules/
+build/
+dist/
+
+# Temp files
+*.tmp
+*.log

@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+/* ── Base layer (works WITH Tailwind v4 cascade, not against it) ── */
+@layer base {
+  html, body {
+    overflow-x: hidden;
+  }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #09090b;
+    color: #fafafa;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  ::-webkit-scrollbar { width: 5px }
+  ::-webkit-scrollbar-track { background: transparent }
+  ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px }
+}
+
+/* ── Keyframes (must be outside @layer) ── */
+@keyframes fade-up   { from { opacity: 0; transform: translateY(12px) } to { opacity: 1; transform: translateY(0) } }
+@keyframes fade-in   { from { opacity: 0 } to { opacity: 1 } }
+@keyframes slide-down { from { opacity: 0; transform: translateY(-6px) } to { opacity: 1; transform: translateY(0) } }
+
+/* ── Custom utilities (in Tailwind's utility layer so they compose correctly) ── */
+@layer utilities {
+  .gradient-text {
+    background: linear-gradient(135deg, #818cf8, #6366f1 50%, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .card {
+    background: #18181b;
+    border: 1px solid #27272a;
+    border-radius: 0.75rem;
+  }
+  .anim-fade-up    { animation: fade-up .45s ease-out both }
+  .anim-fade-in    { animation: fade-in .35s ease-out both }
+  .anim-slide-down { animation: slide-down .25s ease-out both }
+  .del-1 { animation-delay: .08s }
+  .del-2 { animation-delay: .16s }
+  .del-3 { animation-delay: .24s }
+  .del-4 { animation-delay: .32s }
+}
