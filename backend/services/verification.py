@@ -57,6 +57,7 @@ from algosdk import transaction, account, encoding
 from dotenv import load_dotenv
 
 from services.algorand_client import get_algod_client
+from services.submission_store import update_submission
 
 load_dotenv()
 
@@ -263,7 +264,11 @@ def begin_verification(
         }
 
     # RANDOM SELECTION — inspectors don't know who else is assigned
-    num_to_assign = min(max(MIN_INSPECTORS, 3), len(eligible))
+    # Assign all eligible inspectors for small pools (hackathon/demo).
+    # For production, cap at a higher number (e.g. 7).
+    num_to_assign = min(len(eligible), 7)
+    if num_to_assign < MIN_INSPECTORS:
+        num_to_assign = MIN_INSPECTORS
     selected = random.sample(eligible, num_to_assign)
 
     # Mark inspectors as busy
@@ -305,6 +310,9 @@ def begin_verification(
     }
 
     _verification_sessions[evidence_id] = session
+
+    # Sync submission store status
+    update_submission(evidence_id, status="UNDER_VERIFICATION")
 
     # On-chain call (if app deployed)
     tx_id = None
@@ -591,6 +599,9 @@ def finalize_verification(
     session["finalized_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
     session["phase"] = "FINALIZED"
     session["vote_breakdown"] = vote_percentages
+
+    # Sync submission store status
+    update_submission(evidence_id, status=final_status)
 
     # Update inspector reputations
     _update_reputations(session, final_verdict)

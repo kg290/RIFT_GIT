@@ -86,10 +86,23 @@ export default function InspectorPortal() {
   const doBegin = async (evidenceId, category) => {
     try {
       const result = await beginVerification({ evidence_id: evidenceId, category });
-      if (result.error) return flashErr(result.error);
+      if (result.error) {
+        // "already started" is not a real error — just refresh the list
+        if (/already started/i.test(result.error)) {
+          flash('Verification already in progress — refreshing list');
+          return refresh();
+        }
+        return flashErr(result.error);
+      }
       flash(`Verification started for ${evidenceId.slice(0, 12)}… — ${result.inspectors_assigned} inspectors assigned`);
       refresh();
-    } catch (e) { flashErr(e); }
+    } catch (e) {
+      const detail = e?.response?.data?.detail || e?.message || '';
+      if (/already started/i.test(detail)) {
+        flash('Verification already in progress — refreshing list');
+        refresh();
+      } else { flashErr(e); }
+    }
   };
 
   const doCommit = async (evidenceId) => {
