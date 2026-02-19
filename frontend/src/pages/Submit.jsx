@@ -31,7 +31,6 @@ export default function Submit() {
       <PageHeader badge="Encrypted & Anonymous" badgeIcon={Shield} title="Submit Evidence"
         subtitle="Files are encrypted locally, uploaded to IPFS, and anchored on Algorand." />
 
-      {/* Pipeline */}
       <div className="flex items-center justify-center gap-3 mb-8 anim-fade-up del-1">
         {[
           { icon: Lock, label: 'Encrypt', on: true },
@@ -39,10 +38,10 @@ export default function Submit() {
           { icon: Database, label: 'On-Chain', on: !!result },
         ].map(({ icon: I, label, on }, i) => (
           <div key={label} className="flex items-center gap-3">
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${on ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-zinc-900 text-zinc-500 border border-zinc-800'}`}>
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${on ? 'bg-indigo-50 text-indigo-600 border border-indigo-200' : 'bg-slate-50 text-slate-400 border border-slate-200'}`}>
               <I className="w-3.5 h-3.5" />{label}
             </div>
-            {i < 2 && <div className={`w-6 h-px ${on ? 'bg-indigo-500/30' : 'bg-zinc-800'}`} />}
+            {i < 2 && <div className={`w-6 h-px ${on ? 'bg-indigo-300' : 'bg-slate-200'}`} />}
           </div>
         ))}
       </div>
@@ -53,11 +52,11 @@ export default function Submit() {
         <div className="space-y-5 anim-fade-up del-2">
           <WalletConnect />
           {error && (
-            <div className="card p-4 flex items-start gap-3 border-red-500/30">
-              <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+            <div className="card p-4 flex items-start gap-3 border-red-200">
+              <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm text-red-400 font-medium">Submission Failed</p>
-                <p className="text-xs text-zinc-400 mt-1">{error}</p>
+                <p className="text-sm text-red-600 font-medium">Submission Failed</p>
+                <p className="text-xs text-slate-500 mt-1">{error}</p>
               </div>
             </div>
           )}

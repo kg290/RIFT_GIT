@@ -21,17 +21,17 @@ export const VERDICT_LABELS = { 1: 'Authentic', 2: 'Fake / Fabricated', 3: 'Inco
 
 // Backend returns UPPERCASE statuses
 export const STATUS_COLORS = {
-  PENDING:              'bg-amber-500/15 text-amber-400 border-amber-500/25',
-  UNDER_VERIFICATION:   'bg-blue-500/15 text-blue-400 border-blue-500/25',
-  VERIFIED:             'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
-  REJECTED:             'bg-red-500/15 text-red-400 border-red-500/25',
-  RESOLVED:             'bg-purple-500/15 text-purple-400 border-purple-500/25',
-  PUBLISHED:            'bg-cyan-500/15 text-cyan-400 border-cyan-500/25',
-  DISPUTED:             'bg-orange-500/15 text-orange-400 border-orange-500/25',
+  PENDING:              'bg-amber-50 text-amber-700 border-amber-200',
+  UNDER_VERIFICATION:   'bg-blue-50 text-blue-700 border-blue-200',
+  VERIFIED:             'bg-emerald-50 text-emerald-700 border-emerald-200',
+  REJECTED:             'bg-red-50 text-red-700 border-red-200',
+  RESOLVED:             'bg-purple-50 text-purple-700 border-purple-200',
+  PUBLISHED:            'bg-cyan-50 text-cyan-700 border-cyan-200',
+  DISPUTED:             'bg-orange-50 text-orange-700 border-orange-200',
 };
 
 export const PHASE_COLORS = {
-  COMMIT:    'bg-amber-500/15 text-amber-400 border-amber-500/25',
-  REVEAL:    'bg-blue-500/15 text-blue-400 border-blue-500/25',
-  FINALIZED: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
+  COMMIT:    'bg-amber-50 text-amber-700 border-amber-200',
+  REVEAL:    'bg-blue-50 text-blue-700 border-blue-200',
+  FINALIZED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
 };

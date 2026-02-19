@@ -1,12 +1,19 @@
-import { useState, useEffect } from 'react';
-import { Settings, RefreshCw, Users, FileCheck, BarChart3, ExternalLink, Play, DollarSign, Send } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { Settings, Users, FileText, Activity, RefreshCw, AlertCircle, Play, Gavel, Megaphone, Search, Cpu, Shield, Image } from 'lucide-react';
 import {
   getAllSubmissions, listInspectors, getAllVerificationSessions,
-  getResolutionStats, getBountyStats, getContractTransparency,
-  resolveEvidence, processBounty, publishEvidence, beginVerification,
+  beginVerification, resolveEvidence, publishEvidence, getResolutionStats, getContractTransparency,
 } from '../lib/api';
-import { CATEGORY_INFO, STATUS_COLORS, PHASE_COLORS, VERDICT_LABELS } from '../lib/constants';
+import { CATEGORY_INFO, STATUS_COLORS, PHASE_COLORS } from '../lib/constants';
 import { Badge, Stat, EmptyState, PageHeader } from '../components/UI';
+
+const TABS = [
+  { key: 'overview', label: 'Overview', icon: Activity },
+  { key: 'submissions', label: 'Submissions', icon: FileText },
+  { key: 'inspectors', label: 'Inspectors', icon: Users },
+  { key: 'sessions', label: 'Sessions', icon: Cpu },
+  { key: 'contract', label: 'Contract', icon: Shield },
+];
 
 export default function AdminPortal() {
   const [tab, setTab] = useState('overview');
@@ -14,215 +21,270 @@ export default function AdminPortal() {
   const [inspectors, setInspectors] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [resStats, setResStats] = useState(null);
-  const [bountyStats, setBountyStats] = useState(null);
   const [contract, setContract] = useState(null);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState(null);
+  const [err, setErr] = useState(null);
+  const [publishResult, setPublishResult] = useState(null);
 
-  const flash = (m) => { setMsg(m); setTimeout(() => setMsg(null), 4000); };
+  const flash = (m) => { setMsg(m); setErr(null); setTimeout(() => setMsg(null), 6000); };
+  const flashErr = (e) => { setErr(typeof e === 'string' ? e : e?.response?.data?.detail || e?.message || 'Error'); setMsg(null); };
 
-  const load = () => {
+  const load = useCallback(async () => {
     setLoading(true);
-    Promise.all([
-      getAllSubmissions(), listInspectors(), getAllVerificationSessions(),
-      getResolutionStats(), getBountyStats(), getContractTransparency(),
-    ])
-      .then(([s, i, v, rs, bs, c]) => {
-        setSubs(s); setInspectors(i); setSessions(v);
-        setResStats(rs); setBountyStats(bs); setContract(c);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  };
-  useEffect(load, []);
+    try {
+      const [s, ins, sess, rs, ci] = await Promise.all([
+        getAllSubmissions(), listInspectors(), getAllVerificationSessions(),
+        getResolutionStats().catch(() => null), getContractTransparency().catch(() => null),
+      ]);
+      setSubs(Array.isArray(s) ? s : []);
+      setInspectors(Array.isArray(ins) ? ins : []);
+      setSessions(Array.isArray(sess) ? sess : []);
+      setResStats(rs);
+      setContract(ci);
+    } catch (e) { flashErr(e); }
+    setLoading(false);
+  }, []);
 
-  const doResolve = async (id) => {
-    try { await resolveEvidence({ evidence_id: id }); flash('Resolved: ' + id.slice(0, 12)); load(); } catch {}
-  };
-  const doBounty = async (id) => {
-    try { await processBounty(id); flash('Bounty processed: ' + id.slice(0, 12)); load(); } catch {}
-  };
-  const doPublish = async (id) => {
-    try { await publishEvidence(id); flash('Published: ' + id.slice(0, 12)); load(); } catch {}
+  useEffect(() => { load(); }, [load]);
+
+  const doBegin = async (evidenceId, category) => {
+    try {
+      const r = await beginVerification({ evidence_id: evidenceId, category });
+      if (r.error) return flashErr(r.error);
+      flash(`Verification started — ${r.inspectors_assigned} inspectors assigned`);
+      load();
+    } catch (e) { flashErr(e); }
   };
 
-  const TABS = [
-    { id: 'overview', label: 'Overview', icon: BarChart3 },
-    { id: 'submissions', label: 'Submissions', icon: FileCheck },
-    { id: 'inspectors', label: 'Inspectors', icon: Users },
-    { id: 'sessions', label: 'Verification', icon: Play },
-    { id: 'contract', label: 'Contract', icon: Settings },
-  ];
+  const doResolve = async (evidenceId) => {
+    try {
+      const r = await resolveEvidence(evidenceId);
+      if (r.error) return flashErr(r.error);
+      flash(`Evidence resolved — ${r.resolution?.resolution_action || 'done'}`);
+      load();
+    } catch (e) { flashErr(e); }
+  };
+
+  const doPublish = async (evidenceId) => {
+    try {
+      const r = await publishEvidence(evidenceId);
+      if (r.error) return flashErr(r.error);
+      setPublishResult(r);
+      flash(`Published to ${r.publications?.length || 0} platforms`);
+      load();
+    } catch (e) { flashErr(e); }
+  };
+
+  const pending = subs.filter(s => s.status === 'PENDING');
+  const underVer = subs.filter(s => s.status === 'UNDER_VERIFICATION');
+  const verified = subs.filter(s => s.status === 'VERIFIED');
+  const resolved = subs.filter(s => s.status === 'RESOLVED' || s.status === 'PUBLISHED');
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      <PageHeader badge="Admin Access" badgeIcon={Settings} title="Admin Portal"
-        subtitle="Manage submissions, inspectors, verification, resolution, and bounties." />
+      <PageHeader badge="Admin Panel" badgeIcon={Settings} title="Admin Portal"
+        subtitle="Manage submissions, inspectors, verification sessions, and resolutions." />
 
-      {msg && <div className="card p-3 mb-4 border-emerald-500/30 text-emerald-400 text-sm anim-slide-down">{msg}</div>}
+      {msg && <div className="card p-3 mb-4 border-emerald-200 text-emerald-700 text-sm anim-slide-down">{msg}</div>}
+      {err && <div className="card p-3 mb-4 border-red-200 text-red-600 text-sm flex items-center gap-2 anim-slide-down"><AlertCircle className="w-4 h-4" />{err}</div>}
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 mb-6 overflow-x-auto anim-fade-up">
+      <div className="flex gap-1 mb-6 overflow-x-auto scrollbar-none">
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
+          <button key={t.key} onClick={() => setTab(t.key)}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium cursor-pointer border transition-all whitespace-nowrap
-              ${tab === t.id ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:border-zinc-700'}`}>
-            <t.icon className="w-3.5 h-3.5" />{t.label}
+              ${tab === t.key ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}>
+            <t.icon className="w-3.5 h-3.5" /> {t.label}
           </button>
         ))}
-        <div className="ml-auto">
-          <button onClick={load} className="p-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white cursor-pointer transition-colors">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
+        <button onClick={load} className="ml-auto flex items-center gap-1 px-3 py-2 rounded-lg text-xs text-slate-500 hover:text-slate-800 cursor-pointer bg-transparent border-none">
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+        </button>
       </div>
 
-      {/* ── Overview ── */}
+      {/* ═══ Overview ═══ */}
       {tab === 'overview' && (
         <div className="space-y-6 anim-fade-up">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Stat label="Submissions" value={subs.length} />
-            <Stat label="Inspectors" value={inspectors.length} />
-            <Stat label="Verifications" value={sessions.length} />
-            <Stat label="Resolved" value={resStats?.total_resolved || 0} />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Stat label="Total Submissions" value={subs.length} />
+            <Stat label="Pending" value={pending.length} />
+            <Stat label="Under Verification" value={underVer.length} />
+            <Stat label="Verified / Resolved" value={verified.length + resolved.length} />
           </div>
-          {bountyStats && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              <Stat label="Bounties Paid" value={bountyStats.total_payouts || 0} />
-              <Stat label="Total Paid" value={`${bountyStats.total_paid_algo || 0} ALGO`} />
-              <Stat label="Avg Payout" value={`${bountyStats.average_payout_algo || 0} ALGO`} />
-            </div>
-          )}
-          {contract && (
-            <div className="card p-5">
-              <h3 className="text-sm font-semibold mb-3">Smart Contract</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                <div><span className="text-zinc-500">App ID:</span> <span className="text-white ml-1">{contract.app_id}</span></div>
-                <div><span className="text-zinc-500">Network:</span> <span className="text-white ml-1">{contract.network}</span></div>
-                <div><span className="text-zinc-500">Balance:</span> <span className="text-white ml-1 font-medium">{contract.balance_algo} ALGO</span></div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <Stat label="Inspectors" value={inspectors.length} />
+            <Stat label="Active Sessions" value={sessions.length} />
+            <Stat label="Resolutions" value={resStats?.total_resolutions ?? 0} />
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Submissions ═══ */}
+      {tab === 'submissions' && (
+        <div className="space-y-3 anim-fade-up">
+          {subs.length === 0 && <EmptyState icon={FileText} title="No submissions" description="Evidence submissions will appear here." />}
+          {subs.map(sub => {
+            const cat = CATEGORY_INFO[sub.category] || {};
+            const statusCls = STATUS_COLORS[sub.status] || 'bg-slate-100 text-slate-600 border-slate-200';
+            return (
+              <div key={sub.evidence_id} className="card p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg">{cat.emoji || '📄'}</span>
+                    <div>
+                      <p className="text-sm font-mono text-slate-700">{sub.evidence_id}</p>
+                      <p className="text-xs text-slate-400">
+                        {cat.label || sub.category} · {sub.organization || 'N/A'} · Stake: {sub.stake_amount || 0} ALGO
+                        {sub.submitted_at && ` · ${new Date(sub.submitted_at).toLocaleDateString()}`}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge className={statusCls}>{sub.status}</Badge>
+                </div>
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  {sub.status === 'PENDING' && (
+                    <button onClick={() => doBegin(sub.evidence_id, sub.category)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-medium cursor-pointer hover:bg-amber-400 border-none transition-colors">
+                      <Play className="w-3 h-3" /> Begin Verification
+                    </button>
+                  )}
+                  {sub.status === 'VERIFIED' && (
+                    <>
+                      <button onClick={() => doResolve(sub.evidence_id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-medium cursor-pointer hover:bg-indigo-500 border-none transition-colors">
+                        <Gavel className="w-3 h-3" /> Resolve
+                      </button>
+                      <button onClick={() => doPublish(sub.evidence_id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium cursor-pointer hover:bg-rose-500 border-none transition-colors">
+                        <Megaphone className="w-3 h-3" /> Publish Social
+                      </button>
+                    </>
+                  )}
+                  {sub.status === 'RESOLVED' && (
+                    <button onClick={() => doPublish(sub.evidence_id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium cursor-pointer hover:bg-rose-500 border-none transition-colors">
+                      <Megaphone className="w-3 h-3" /> Publish Social
+                    </button>
+                  )}
+                </div>
               </div>
-              <p className="text-[11px] text-zinc-500 font-mono mt-2 break-all">{contract.app_address}</p>
-              {contract.explorer_url && (
-                <a href={contract.explorer_url} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 mt-2">
-                  View on Explorer <ExternalLink className="w-3 h-3" />
-                </a>
-              )}
+            );
+          })}
+        </div>
+      )}
+
+      {/* ═══ Inspectors ═══ */}
+      {tab === 'inspectors' && (
+        <div className="space-y-3 anim-fade-up">
+          {inspectors.length === 0 && <EmptyState icon={Users} title="No inspectors" description="Registered inspectors will appear here." />}
+          {inspectors.map((ins, i) => (
+            <div key={i} className="card p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-amber-50 border border-amber-200 grid place-items-center">
+                  <Users className="w-4 h-4 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-800">{ins.name}</p>
+                  <p className="text-xs text-slate-400 font-mono">{ins.address?.slice(0, 12)}…</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="flex gap-1 justify-end flex-wrap">
+                  {ins.specializations?.map(s => {
+                    const cat = CATEGORY_INFO[s] || {};
+                    return <span key={s} className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200">{cat.emoji || ''} {cat.label || s}</span>;
+                  })}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  {ins.total_inspections ?? 0} inspections · {ins.department || ''}
+                </p>
+              </div>
             </div>
+          ))}
+        </div>
+      )}
+
+      {/* ═══ Sessions ═══ */}
+      {tab === 'sessions' && (
+        <div className="space-y-3 anim-fade-up">
+          {sessions.length === 0 && <EmptyState icon={Cpu} title="No sessions" description="Verification sessions appear here when evidence verification begins." />}
+          {sessions.map((sess, i) => {
+            const phaseColor = PHASE_COLORS[sess.phase] || 'bg-slate-100 text-slate-500 border-slate-200';
+            return (
+              <div key={i} className="card p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-mono text-slate-700">{sess.evidence_id}</p>
+                  <Badge className={phaseColor}>{sess.phase}</Badge>
+                </div>
+                <div className="flex gap-4 text-xs text-slate-500">
+                  <span>Inspectors: {sess.assigned_inspectors?.length || 0}</span>
+                  <span>Commits: {sess.total_commits ?? Object.keys(sess.commits || {}).length}</span>
+                  <span>Reveals: {sess.total_reveals ?? Object.keys(sess.reveals || {}).length}</span>
+                  {sess.final_verdict && <span>Verdict: <strong className={sess.final_verdict === 'VERIFIED' ? 'text-emerald-600' : 'text-red-500'}>{sess.final_verdict}</strong></span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ═══ Contract ═══ */}
+      {tab === 'contract' && (
+        <div className="anim-fade-up">
+          {contract ? (
+            <div className="card p-6 space-y-3">
+              <h3 className="text-sm font-semibold text-slate-800 mb-3">Smart Contract Info</h3>
+              {Object.entries(contract).map(([k, v]) => (
+                <div key={k} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
+                  <span className="text-xs text-slate-500">{k.replace(/_/g, ' ')}</span>
+                  <span className="text-xs text-slate-800 font-mono">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState icon={Shield} title="Contract info unavailable" description="Could not load smart contract details." />
           )}
         </div>
       )}
 
-      {/* ── Submissions ── */}
-      {tab === 'submissions' && (
-        subs.length === 0 ? <EmptyState icon={FileCheck} title="No submissions" description="Evidence submissions will appear here." /> : (
-          <div className="card overflow-hidden anim-fade-up">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead>
-                  <tr className="border-b border-zinc-800 text-xs text-zinc-500 uppercase tracking-wider">
-                    <th className="px-4 py-3">ID</th><th className="px-4 py-3">Category</th>
-                    <th className="px-4 py-3">Status</th><th className="px-4 py-3">Stake</th>
-                    <th className="px-4 py-3">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {subs.map(s => {
-                    const cat = CATEGORY_INFO[s.category] || {};
-                    return (
-                      <tr key={s.evidence_id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20 transition-colors">
-                        <td className="px-4 py-3 font-mono text-xs text-zinc-400">{s.evidence_id?.slice(0, 12)}…</td>
-                        <td className="px-4 py-3 text-xs">{cat.emoji} {cat.label || s.category}</td>
-                        <td className="px-4 py-3"><Badge className={STATUS_COLORS[s.status] || 'bg-zinc-700/50 text-zinc-400 border-zinc-600'}>{s.status}</Badge></td>
-                        <td className="px-4 py-3 text-zinc-300">{s.stake_amount} ALGO</td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-1.5">
-                            <button onClick={() => doResolve(s.evidence_id)} className="px-2.5 py-1 rounded bg-purple-600 text-white text-[11px] font-medium cursor-pointer hover:bg-purple-500 border-none">Resolve</button>
-                            <button onClick={() => doBounty(s.evidence_id)} className="px-2.5 py-1 rounded bg-emerald-600 text-white text-[11px] font-medium cursor-pointer hover:bg-emerald-500 border-none">Bounty</button>
-                            <button onClick={() => doPublish(s.evidence_id)} className="px-2.5 py-1 rounded bg-cyan-600 text-white text-[11px] font-medium cursor-pointer hover:bg-cyan-500 border-none">Publish</button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+      {/* Publication Result Modal */}
+      {publishResult && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm grid place-items-center z-50" onClick={() => setPublishResult(null)}>
+          <div className="card max-w-lg w-full mx-4 p-6 space-y-4 anim-fade-up" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-rose-50 border border-rose-200 grid place-items-center">
+                <Megaphone className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">Published to Social Media</h3>
+                <p className="text-xs text-slate-400">Evidence shared across {publishResult.publications?.length || 0} platforms</p>
+              </div>
             </div>
-          </div>
-        )
-      )}
-
-      {/* ── Inspectors ── */}
-      {tab === 'inspectors' && (
-        inspectors.length === 0 ? <EmptyState icon={Users} title="No inspectors" description="Registered inspectors appear here." /> : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 anim-fade-up">
-            {inspectors.map(ins => (
-              <div key={ins.address} className="card p-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 grid place-items-center">
-                    <Users className="w-4 h-4 text-amber-400" />
+            <div className="space-y-2">
+              {publishResult.publications?.map((pub, i) => (
+                <div key={i} className="bg-slate-50 border border-slate-200 rounded-lg p-3 flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 grid place-items-center text-sm shrink-0">
+                    {pub.platform === 'twitter' ? '𝕏' : pub.platform === 'telegram' ? '✈' : pub.platform === 'email' ? '✉' : pub.platform === 'rti' ? '📋' : '📢'}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-white">{ins.name || 'Inspector'}</p>
-                    <p className="text-[11px] text-zinc-500 font-mono">{ins.address?.slice(0, 10)}…{ins.address?.slice(-6)}</p>
+                    <p className="text-xs font-semibold text-slate-700 capitalize">{pub.platform}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">{pub.content || pub.message || 'Published'}</p>
+                    {pub.url && <a href={pub.url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-indigo-600 hover:underline">{pub.url}</a>}
+                    {pub.image_url && (
+                      <div className="mt-1 flex items-center gap-1">
+                        <Image className="w-3 h-3 text-slate-400" />
+                        <a href={pub.image_url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-indigo-600 hover:underline">View image</a>
+                      </div>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-4 text-xs text-zinc-400">
-                  <span>Cases: <strong className="text-white">{ins.total_cases || 0}</strong></span>
-                  <span>Accuracy: <strong className="text-emerald-400">{ins.accuracy || 'N/A'}</strong></span>
-                  <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/25">{ins.status || 'active'}</Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        )
-      )}
-
-      {/* ── Verification Sessions ── */}
-      {tab === 'sessions' && (
-        sessions.length === 0 ? <EmptyState icon={Play} title="No sessions" description="Verification sessions appear here." /> : (
-          <div className="space-y-3 anim-fade-up">
-            {sessions.map(s => (
-              <div key={s.evidence_id} className="card p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-mono text-white">{s.evidence_id?.slice(0, 20)}…</p>
-                  <Badge className={PHASE_COLORS[s.phase] || 'bg-zinc-700/50 text-zinc-400'}>{s.phase}</Badge>
-                </div>
-                <div className="flex items-center gap-4 text-xs text-zinc-400">
-                  <span>Inspectors: {s.inspectors?.length || 0}</span>
-                  <span>Commits: {s.commits_received || 0}/{s.required_commits || 0}</span>
-                  <span>Reveals: {s.reveals_received || 0}/{s.required_reveals || 0}</span>
-                  {s.final_verdict && <span>Verdict: <strong className="text-white">{VERDICT_LABELS[s.final_verdict] || s.final_verdict}</strong></span>}
-                </div>
-              </div>
-            ))}
-          </div>
-        )
-      )}
-
-      {/* ── Contract ── */}
-      {tab === 'contract' && contract && (
-        <div className="space-y-4 anim-fade-up">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Stat label="App ID" value={contract.app_id} />
-            <Stat label="Balance" value={`${contract.balance_algo} ALGO`} />
-            <Stat label="Total Resolved" value={contract.total_resolved || 0} />
-            <Stat label="Refund Rate" value={contract.refund_rate || 'N/A'} />
-          </div>
-          <div className="card p-5">
-            <h3 className="text-sm font-semibold mb-3">Contract Address</h3>
-            <p className="text-xs text-zinc-400 font-mono break-all mb-3">{contract.app_address}</p>
-            <div className="flex items-center gap-3 text-xs text-zinc-400">
-              <span>Network: <strong className="text-white">{contract.network}</strong></span>
-              <span>Stakes Released: <strong className="text-emerald-400">{contract.stakes_released || 0}</strong></span>
-              <span>Stakes Forfeited: <strong className="text-red-400">{contract.stakes_forfeited || 0}</strong></span>
+              ))}
             </div>
-            {contract.explorer_url && (
-              <a href={contract.explorer_url} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 mt-3">
-                View on Explorer <ExternalLink className="w-3 h-3" />
-              </a>
-            )}
+            <button onClick={() => setPublishResult(null)}
+              className="w-full py-2.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium cursor-pointer border border-slate-200 hover:bg-slate-200 transition-colors">
+              Close
+            </button>
           </div>
         </div>
       )}

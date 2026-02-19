@@ -1,20 +1,20 @@
 @import "tailwindcss";
 
-/* ── Base layer (works WITH Tailwind v4 cascade, not against it) ── */
+/* ── Base layer ── */
 @layer base {
   html, body {
     overflow-x: hidden;
   }
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background: #09090b;
-    color: #fafafa;
+    background: #ffffff;
+    color: #1e293b;
     -webkit-font-smoothing: antialiased;
     min-height: 100vh;
   }
   ::-webkit-scrollbar { width: 5px }
   ::-webkit-scrollbar-track { background: transparent }
-  ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px }
 }
 
 /* ── Keyframes (must be outside @layer) ── */
@@ -22,18 +22,22 @@
 @keyframes fade-in   { from { opacity: 0 } to { opacity: 1 } }
 @keyframes slide-down { from { opacity: 0; transform: translateY(-6px) } to { opacity: 1; transform: translateY(0) } }
 
-/* ── Custom utilities (in Tailwind's utility layer so they compose correctly) ── */
+/* ── Custom utilities ── */
 @layer utilities {
   .gradient-text {
-    background: linear-gradient(135deg, #818cf8, #6366f1 50%, #a78bfa);
+    background: linear-gradient(135deg, #4f46e5, #6366f1 50%, #7c3aed);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
   .card {
-    background: #18181b;
-    border: 1px solid #27272a;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 0.75rem;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  }
+  .card:hover {
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.06);
   }
   .anim-fade-up    { animation: fade-up .45s ease-out both }
   .anim-fade-in    { animation: fade-in .35s ease-out both }

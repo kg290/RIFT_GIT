@@ -12,7 +12,7 @@ import HowItWorks from './pages/HowItWorks';
 export default function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-zinc-950 text-white overflow-x-hidden">
+      <div className="min-h-screen bg-white text-slate-800 overflow-x-hidden">
         <Navbar />
         <main>
           <Routes>
