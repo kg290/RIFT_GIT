@@ -1,0 +1,17 @@
+# Exclude from Vercel serverless function bundle
+frontend/node_modules
+frontend/.cache
+frontend/dist
+node_modules
+__pycache__
+*.pyc
+.git
+.env
+tests
+smart-contracts
+docs
+demo_submission_result.json
+test_evidence.txt
+seed_data.py
+run_step1_demo.py
+WHISTLECHAIN_PROJECT.md
