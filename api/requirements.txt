@@ -1,0 +1,12 @@
+# Python dependencies for Vercel serverless function
+py-algorand-sdk>=2.4.0
+python-dotenv>=1.0.0
+pycryptodome>=3.20.0
+requests>=2.31.0
+httpx>=0.25.0
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+google-generativeai>=0.3.0
+apscheduler>=3.10.0
+python-multipart>=0.0.6
+mangum>=0.17.0
