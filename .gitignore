@@ -29,6 +29,9 @@ node_modules/
 build/
 dist/
 
+# Vercel
+.vercel/
+
 # Temp files
 *.tmp
 *.log

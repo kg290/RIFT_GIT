@@ -99,6 +99,7 @@ app = FastAPI(
     title="WhistleChain API",
     description="Decentralized Whistleblower Protection & Bounty Protocol",
     version="2.0.0",
+    root_path=os.getenv("API_ROOT_PATH", ""),
 )
 
 # CORS -- allow frontend to call us
@@ -109,6 +110,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Strip /api prefix when running behind Vercel rewrite
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
+
+class StripApiPrefixMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: StarletteRequest, call_next):
+        if request.url.path.startswith("/api"):
+            scope = request.scope
+            scope["path"] = scope["path"][4:]  # strip "/api"
+            if scope["path"] == "":
+                scope["path"] = "/"
+        return await call_next(request)
+
+app.add_middleware(StripApiPrefixMiddleware)
 
 
 # --- Models ---
